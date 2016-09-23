@@ -4,6 +4,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class DigraphSort {
 
@@ -30,6 +31,8 @@ public class DigraphSort {
 					// TODO Auto-generated catch block
 					System.out.println("nonDAG");
 					isDAG = false;
+				}
+				if(!isDAG){
 					break;
 				}
 				if (temp > max){
@@ -54,7 +57,7 @@ public class DigraphSort {
 	}
 	private static int sort(Node x) throws Exception{
 		if(x.isSet()){
-			throw new Exception("Invalid input at this stage- not a DAG");
+			throw new Exception();
 		}	
 		x.setFlag();
 		int max = -1;
@@ -63,7 +66,7 @@ public class DigraphSort {
 			if(y.getStrata() == -1){
 				temp = sort(y);
 			} else{
-				temp = sort(y);
+				temp = y.getStrata();
 			}
 			if(temp > max){
 				max = temp;
@@ -99,13 +102,13 @@ public class DigraphSort {
 	}
 }
 class Node{
-	private ArrayList<Node> _sources;
-	private ArrayList<Node> _destinations;
+	private HashSet<Node> _sources;
+	private HashSet<Node> _destinations;
 	private boolean _flagSet;
 	private int _strata;
 	public Node(){
-		_sources = new ArrayList<Node>();
-		_destinations = new ArrayList<Node>();
+		_sources = new HashSet<Node>();
+		_destinations = new HashSet<Node>();
 		_flagSet = false;
 		_strata = -1;
 	}
@@ -113,7 +116,7 @@ class Node{
 		_sources.add(n);
 	}
 
-	public ArrayList<Node> getSources(){
+	public HashSet<Node> getSources(){
 		return _sources;
 	}
 	public void addDestination(Node n){
