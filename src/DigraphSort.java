@@ -2,34 +2,57 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 public class DigraphSort {
 
 	public static void main (String[] args) throws NumberFormatException, IOException{
+		boolean isDAG = true;
 		//Read in number of arcs
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		int arcNumber = Integer.parseInt(in.readLine().split("\\s+")[0]);
-		//Read the arcs into HashSet
-		int source, destination;
+		//Read the arcs into HashMap
+
 		String[] line;
 		HashMap<Integer, Node> nodes = new HashMap<Integer, Node>();
 		for(int i = 0; i < arcNumber; i++){
 			line = in.readLine().split("\\s+");
-			source = Integer.parseInt(line[0]);
-			destination = Integer.parseInt(line[1]);
-			//Make new node if it does not already exist
-			if(!nodes.containsKey(source)){
-				nodes.put(source, new Node());
+			readArc(line, nodes);
+		}
+		int temp = -1;
+		int max = -1;
+		for(Node node : nodes.values()){
+			if(node.getStrata() == -1){
+				try {
+					temp = sort(node);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					System.out.println("nonDAG");
+					isDAG = false;
+					break;
+				}
+				if (temp > max){
+					max = temp;
+				}
 			}
-			if(!nodes.containsKey(destination)){
-				nodes.put(source, new Node());
+		}
+		int numberOfStrata = max;
+		if(isDAG){
+			ArrayList<ArrayList<Integer>> stratificaton = new ArrayList<ArrayList<Integer>>();
+			for (int j = 0; j <= numberOfStrata; j++){
+				stratificaton.add(new ArrayList<Integer>());
 			}
-			nodes.get(source).addDestination(nodes.get(destination));
-			nodes.get(destination).addDestination(nodes.get(source));
+			for(int nodeNumber : nodes.keySet()){
+				//add the node to the stratification ArrayList
+				stratificaton.get(nodes.get(nodeNumber).getStrata()).add(nodeNumber);
+;			}
+			System.out.println("DAG");
+			System.out.println(stratificaton.size());
+			printStratification(stratificaton);
 		}
 	}
-	private int sort(Node x, int rd) throws Exception{
+	private static int sort(Node x) throws Exception{
 		if(x.isSet()){
 			throw new Exception("Invalid input at this stage- not a DAG");
 		}	
@@ -37,18 +60,45 @@ public class DigraphSort {
 		int max = -1;
 		int temp;
 		for(Node y : x.getSources()){
-			temp = sort(y, rd+1);
+			if(y.getStrata() == -1){
+				temp = sort(y);
+			} else{
+				temp = sort(y);
+			}
 			if(temp > max){
 				max = temp;
 			}
 		}
 		x.removeFlag();
-		x.setStrata(max);
-		return max;
+		x.setStrata(max+1);
+		return max+1;
+	}
+	private static void readArc(String[] line, HashMap<Integer, Node> nodes){
+		int source, destination;
+		source = Integer.parseInt(line[0]);
+		destination = Integer.parseInt(line[1]);
+		//Make new node if it does not already exist
+		if(!nodes.containsKey(source)){
+			nodes.put(source, new Node());
+		}
+		if(!nodes.containsKey(destination)){
+			nodes.put(destination, new Node());
+		}
+		nodes.get(source).addDestination(nodes.get(destination));
+		nodes.get(destination).addSource(nodes.get(source));
+	}
+	
+	private static void printStratification(ArrayList<ArrayList<Integer>> stratification){
+		for(ArrayList<Integer> strata : stratification){
+			Collections.sort(strata);
+			System.out.println(strata.size());
+			for(int node : strata){
+				System.out.println(node);
+			}
+		}
 	}
 }
 class Node{
-	private int _nodeNumber;
 	private ArrayList<Node> _sources;
 	private ArrayList<Node> _destinations;
 	private boolean _flagSet;
@@ -57,6 +107,7 @@ class Node{
 		_sources = new ArrayList<Node>();
 		_destinations = new ArrayList<Node>();
 		_flagSet = false;
+		_strata = -1;
 	}
 	public void addSource(Node n){
 		_sources.add(n);
