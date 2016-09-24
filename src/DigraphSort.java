@@ -57,7 +57,7 @@ public class DigraphSort {
 	}
 	private static int sort(Node x) throws Exception{
 		if(x.isSet()){
-			throw new Exception();
+			throw new IllegalArgumentException();
 		}	
 		x.setFlag();
 		int max = -1;
@@ -102,10 +102,10 @@ public class DigraphSort {
 	}
 }
 class Node{
-	private HashSet<Node> _sources;
-	private HashSet<Node> _destinations;
-	private boolean _flagSet;
-	private int _strata;
+	protected HashSet<Node> _sources;
+	protected HashSet<Node> _destinations;
+	protected boolean _flagSet;
+	protected int _strata;
 	public Node(){
 		_sources = new HashSet<Node>();
 		_destinations = new HashSet<Node>();
@@ -122,6 +122,9 @@ class Node{
 	public void addDestination(Node n){
 		_destinations.add(n);
 	}
+	public HashSet<Node> getDestinations(){
+		return _destinations;
+	}
 	public boolean isSet(){
 		return _flagSet;
 	}
@@ -137,5 +140,20 @@ class Node{
 	}
 	public void removeFlag(){
 		_flagSet = false;
+	}
+}
+
+class CollapsedNode extends Node{
+	private ArrayList<Node> _stronglyConnectedNodes;
+	
+	public CollapsedNode(){
+		super();
+		_stronglyConnectedNodes = new ArrayList<Node>();
+	}
+	
+	public void addNode(Node n){
+		_stronglyConnectedNodes.add(n);
+		_sources.addAll(n.getSources());
+		_destinations.addAll(n.getDestinations());
 	}
 }
