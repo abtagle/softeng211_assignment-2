@@ -61,6 +61,13 @@ public class DigraphSort {
 			throw new InvalidInputException(x);
 		}
 		x.setFlag();
+		int max = assessSources(x);
+		x.removeFlag();
+		x.setStrata(max+1);
+		return max+1;
+	}
+	
+	private static int assessSources(Node x){
 		int max = -1;
 		int temp = -1;
 		for(Node y : x.getSources()){
@@ -73,6 +80,7 @@ public class DigraphSort {
 						throw new InvalidInputException(e.getNode());
 					} else{
 						x.removeSource(x);
+						temp = assessSources(x);
 					}
 				}
 				if(temp > max){
@@ -86,9 +94,7 @@ public class DigraphSort {
 				}
 			}	
 		}
-		x.removeFlag();
-		x.setStrata(max+1);
-		return max+1;
+		return max;
 	}
 	private static void readArc(String[] line, HashMap<Integer, Node> nodes){
 		int source, destination;
@@ -102,6 +108,7 @@ public class DigraphSort {
 			nodes.put(destination, new Node(destination));
 		}
 		nodes.get(destination).addSource(nodes.get(source));
+		nodes.get(source).addDestination(nodes.get(destination));
 	}
 
 	private static void printStratification(ArrayList<ArrayList<Integer>> stratification, HashMap<Integer ,Node> nodes){
@@ -122,6 +129,7 @@ public class DigraphSort {
 class Node{
 	private int _key;
 	private HashSet<Node> _sources;
+	private HashSet<Node> _destinations;
 	private boolean _flagSet;
 	private int _strata;
 	private boolean _isCollapsed = false;
@@ -129,6 +137,7 @@ class Node{
 	public Node(int key){
 		_key = key;
 		_sources = new HashSet<Node>();
+		_destinations = new HashSet<Node>();
 		_collapsed = new ArrayList<Integer>();
 		_collapsed.add(this._key);
 		_flagSet = false;
@@ -137,13 +146,23 @@ class Node{
 	public void addSource(Node n){
 		_sources.add(n);
 	}
+	public void addDestination(Node n){
+		_destinations.add(n);
+	}
 
 	public HashSet<Node> getSources(){
 		return _sources;
 	}
 
+	public HashSet<Node> getDestination(){
+		return _destinations;
+	}
+
 	public void removeSource(Node n){
 		_sources.remove(n);
+	}
+	public void removeDestination(Node n){
+		_destinations.remove(n);
 	}
 	public boolean isSet(){
 		return _flagSet;
@@ -158,7 +177,6 @@ class Node{
 		int maxStrata = strata;
 		if(_isCollapsed){
 			for(int i = 1; i < _collapsed.size(); i++){
-				int currentStrata = DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata();
 				if(DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata() > maxStrata){
 					maxStrata = DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata();
 				}
@@ -181,8 +199,11 @@ class Node{
 	}
 	public void printCollapse(){
 		Collections.sort(_collapsed);
-		for(int i : _collapsed){
-			System.out.print(i+" ");
+		for(int i = 0; i < _collapsed.size(); i++){
+			System.out.print(_collapsed.get(i));
+			if(i != _collapsed.size()-1){
+				System.out.print(" ");
+			}
 		}
 	}
 	public void merge(Node n){
@@ -190,7 +211,14 @@ class Node{
 		//Remove the node collapsing onto this
 		DigraphSort.nodes.remove(n.getKey());
 		this._sources.remove(n);
-		this._sources.addAll(n.getSources());
+		for(Node source :n.getSources()){
+			this._sources.add(source);
+			for(Node dest:n.getDestination()){
+				dest.removeSource(n);
+				this.addDestination(dest);
+				dest.addSource(this);
+			}
+		}
 		this._collapsed.add(n.getKey());
 		//Update in nodes
 		DigraphSort.nodes.remove(this._key);
@@ -203,6 +231,7 @@ class Node{
 
 }
 
+@SuppressWarnings("serial")
 class InvalidInputException extends RuntimeException{
 	Node _invokingNode;
 	InvalidInputException(Node n){
