@@ -7,7 +7,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public class DigraphSort {
-
+	public static HashMap<Integer, Node>  originalNodes;
+	public static HashMap<Integer, Node> nodes;
 	public static void main (String[] args) throws NumberFormatException, IOException{
 		boolean isDAG = true;
 		//Read in number of arcs
@@ -16,11 +17,13 @@ public class DigraphSort {
 		//Read the arcs into HashMap
 
 		String[] line;
-		HashMap<Integer, Node> nodes = new HashMap<Integer, Node>();
+		originalNodes = new HashMap<Integer, Node>();
 		for(int i = 0; i < arcNumber; i++){
 			line = in.readLine().split("\\s+");
-			readArc(line, nodes);
+			readArc(line, originalNodes);
 		}
+		@SuppressWarnings("unchecked")
+		HashMap<Integer, Node> nodes = (HashMap<Integer, Node>) originalNodes.clone();
 		int temp = -1;
 		int max = -1;
 		for(Node node : nodes.values()){
@@ -29,7 +32,6 @@ public class DigraphSort {
 					temp = sort(node);
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
-					System.out.println("nonDAG");
 					isDAG = false;
 				}
 				if(!isDAG){
@@ -42,35 +44,49 @@ public class DigraphSort {
 		}
 		int numberOfStrata = max;
 		if(isDAG){
-			ArrayList<ArrayList<Integer>> stratificaton = new ArrayList<ArrayList<Integer>>();
-			for (int j = 0; j <= numberOfStrata; j++){
-				stratificaton.add(new ArrayList<Integer>());
-			}
-			for(int nodeNumber : nodes.keySet()){
-				//add the node to the stratification ArrayList
-				stratificaton.get(nodes.get(nodeNumber).getStrata()).add(nodeNumber);
-;			}
 			System.out.println("DAG");
-			System.out.println(stratificaton.size());
-			printStratification(stratificaton);
+		} else{
+			System.out.println("nonDAG");
 		}
+		ArrayList<ArrayList<Integer>> stratificaton = new ArrayList<ArrayList<Integer>>();
+		for (int j = 0; j <= numberOfStrata; j++){
+			stratificaton.add(new ArrayList<Integer>());
+		}
+		for(int nodeNumber : nodes.keySet()){
+			//add the node to the stratification ArrayList
+			stratificaton.get(nodes.get(nodeNumber).getStrata()).add(nodeNumber);
+			;			}
+		System.out.println("DAG");
+		System.out.println(stratificaton.size());
+		printStratification(stratificaton, nodes);
 	}
 	private static int sort(Node x) throws Exception{
 		if(x.isSet()){
-			throw new IllegalArgumentException();
+			throw new InvalidInputException(x);
 		}	
 		x.setFlag();
 		int max = -1;
 		int temp;
 		for(Node y : x.getSources()){
 			if(y.getStrata() == -1){
-				temp = sort(y);
+				try{
+					temp = sort(y);if(temp > max){
+						max = temp;
+					}
+				} catch (InvalidInputException e){
+					if(e.getNode() != y){
+						e.getNode().merge(y);
+						throw new InvalidInputException(e.getNode());
+					} else{
+						y.removeSource(y);
+					}
+				}
 			} else{
 				temp = y.getStrata();
-			}
-			if(temp > max){
-				max = temp;
-			}
+				if(temp > max){
+					max = temp;
+				}
+			}	
 		}
 		x.removeFlag();
 		x.setStrata(max+1);
@@ -82,33 +98,40 @@ public class DigraphSort {
 		destination = Integer.parseInt(line[1]);
 		//Make new node if it does not already exist
 		if(!nodes.containsKey(source)){
-			nodes.put(source, new Node());
+			nodes.put(source, new Node(source));
 		}
 		if(!nodes.containsKey(destination)){
-			nodes.put(destination, new Node());
+			nodes.put(destination, new Node(destination));
 		}
-		nodes.get(source).addDestination(nodes.get(destination));
 		nodes.get(destination).addSource(nodes.get(source));
 	}
-	
-	private static void printStratification(ArrayList<ArrayList<Integer>> stratification){
+
+	private static void printStratification(ArrayList<ArrayList<Integer>> stratification, HashMap<Integer ,Node> nodes){
 		for(ArrayList<Integer> strata : stratification){
 			Collections.sort(strata);
 			System.out.println(strata.size());
 			for(int node : strata){
-				System.out.println(node);
+				if(nodes.get(node).isCollapsed()){
+
+				} else{
+					nodes.get(node).print();
+				}
 			}
 		}
 	}
 }
 class Node{
-	protected HashSet<Node> _sources;
-	protected HashSet<Node> _destinations;
-	protected boolean _flagSet;
-	protected int _strata;
-	public Node(){
+	private int _key;
+	private HashSet<Node> _sources;
+	private boolean _flagSet;
+	private int _strata;
+	private boolean _isCollapsed = false;
+	private ArrayList<Integer> _collapsed;
+	public Node(int key){
+		_key = key;
 		_sources = new HashSet<Node>();
-		_destinations = new HashSet<Node>();
+		_collapsed = new ArrayList<Integer>();
+		_collapsed.add(this._key);
 		_flagSet = false;
 		_strata = -1;
 	}
@@ -119,16 +142,13 @@ class Node{
 	public HashSet<Node> getSources(){
 		return _sources;
 	}
-	public void addDestination(Node n){
-		_destinations.add(n);
-	}
-	public HashSet<Node> getDestinations(){
-		return _destinations;
+
+	public void removeSource(Node n){
+		_sources.remove(n);
 	}
 	public boolean isSet(){
 		return _flagSet;
 	}
-
 	public void setFlag(){
 		_flagSet = true;
 	}
@@ -141,19 +161,44 @@ class Node{
 	public void removeFlag(){
 		_flagSet = false;
 	}
+	public void print(){
+		System.out.println(_key);
+	}
+	public int getKey(){
+		return _key;
+	}
+
+	public boolean isCollapsed(){
+		return _isCollapsed;
+	}
+	public void printCollapse(){
+		Collections.sort(_collapsed);
+	}
+	public void merge(Node n){
+		this._isCollapsed = true;
+		//Remove the node collapsing onto this
+		DigraphSort.nodes.remove(n);
+		this._sources.remove(n);
+		this._sources.addAll(n.getSources());
+		this._collapsed.add(n.getKey());
+		//Replace this node's key if the collapsed node is shorter
+		if(n.getKey() < this._key){
+			this._key = n.getKey();
+		}
+		//Update in nodes
+		DigraphSort.nodes.remove(this);
+		DigraphSort.nodes.put(this._key, this);
+	}
+
 }
 
-class CollapsedNode extends Node{
-	private ArrayList<Node> _stronglyConnectedNodes;
-	
-	public CollapsedNode(){
-		super();
-		_stronglyConnectedNodes = new ArrayList<Node>();
+class InvalidInputException extends RuntimeException{
+	Node _invokingNode;
+	InvalidInputException(Node n){
+		_invokingNode = n;
 	}
-	
-	public void addNode(Node n){
-		_stronglyConnectedNodes.add(n);
-		_sources.addAll(n.getSources());
-		_destinations.addAll(n.getDestinations());
+
+	public Node getNode(){
+		return _invokingNode;
 	}
 }
