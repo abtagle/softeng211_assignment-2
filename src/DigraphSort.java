@@ -9,8 +9,10 @@ import java.util.HashSet;
 public class DigraphSort {
 	public static HashMap<Integer, Node>  originalNodes;
 	public static HashMap<Integer, Node> nodes;
+	public static boolean isDAG = true;
+	@SuppressWarnings("unchecked")
 	public static void main (String[] args) throws NumberFormatException, IOException{
-		boolean isDAG = true;
+
 		//Read in number of arcs
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		int arcNumber = Integer.parseInt(in.readLine().split("\\s+")[0]);
@@ -22,26 +24,20 @@ public class DigraphSort {
 			line = in.readLine().split("\\s+");
 			readArc(line, originalNodes);
 		}
-		@SuppressWarnings("unchecked")
-		HashMap<Integer, Node> nodes = (HashMap<Integer, Node>) originalNodes.clone();
-		int temp = -1;
+		nodes = (HashMap<Integer, Node>) originalNodes.clone();
 		int max = -1;
-		for(Node node : nodes.values()){
+		int temp = -1;
+		for(Node node : originalNodes.values()){
 			if(node.getStrata() == -1){
-				try {
-					temp = sort(node);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					isDAG = false;
-				}
-				if(!isDAG){
-					break;
-				}
-				if (temp > max){
-					max = temp;
-				}
+				temp = sort(node);
+			} else{
+				temp = node.getStrata();
+			}
+			if(temp > max){
+				max = temp;
 			}
 		}
+
 		int numberOfStrata = max;
 		if(isDAG){
 			System.out.println("DAG");
@@ -54,33 +50,35 @@ public class DigraphSort {
 		}
 		for(int nodeNumber : nodes.keySet()){
 			//add the node to the stratification ArrayList
-			stratificaton.get(nodes.get(nodeNumber).getStrata()).add(nodeNumber);
-			;			}
-		System.out.println("DAG");
+			stratificaton.get(nodes.get(nodeNumber).getStrata()).add(nodeNumber);			
+		}
 		System.out.println(stratificaton.size());
 		printStratification(stratificaton, nodes);
 	}
-	private static int sort(Node x) throws Exception{
+	private static int sort(Node x){
 		if(x.isSet()){
+			isDAG = false;
 			throw new InvalidInputException(x);
-		}	
+		}
 		x.setFlag();
 		int max = -1;
-		int temp;
+		int temp = -1;
 		for(Node y : x.getSources()){
 			if(y.getStrata() == -1){
 				try{
-					temp = sort(y);if(temp > max){
-						max = temp;
-					}
-				} catch (InvalidInputException e){
-					if(e.getNode() != y){
-						e.getNode().merge(y);
+					temp = sort(y);
+				}catch (InvalidInputException e){
+					if(e.getNode() != x){
+						e.getNode().merge(x);
 						throw new InvalidInputException(e.getNode());
 					} else{
-						y.removeSource(y);
+						x.removeSource(x);
 					}
 				}
+				if(temp > max){
+					max = temp;
+				}
+
 			} else{
 				temp = y.getStrata();
 				if(temp > max){
@@ -112,9 +110,10 @@ public class DigraphSort {
 			System.out.println(strata.size());
 			for(int node : strata){
 				if(nodes.get(node).isCollapsed()){
-
-				} else{
-					nodes.get(node).print();
+					nodes.get(node).printCollapse();
+					System.out.println();
+				} else{		
+					System.out.println("" + node);
 				}
 			}
 		}
@@ -156,13 +155,22 @@ class Node{
 		return _strata;
 	}
 	public void setStrata(int strata){
+		int maxStrata = strata;
+		if(_isCollapsed){
+			for(int i = 1; i < _collapsed.size(); i++){
+				int currentStrata = DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata();
+				if(DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata() > maxStrata){
+					maxStrata = DigraphSort.originalNodes.get(_collapsed.get(i)).getStrata();
+				}
+			}
+			for(int i = 1; i < _collapsed.size(); i++){
+				DigraphSort.originalNodes.get(_collapsed.get(i)).setStrata(maxStrata);
+			}
+		} 
 		_strata = strata;
 	}
 	public void removeFlag(){
 		_flagSet = false;
-	}
-	public void print(){
-		System.out.println(_key);
 	}
 	public int getKey(){
 		return _key;
@@ -173,25 +181,29 @@ class Node{
 	}
 	public void printCollapse(){
 		Collections.sort(_collapsed);
+		for(int i : _collapsed){
+			System.out.print(i+" ");
+		}
 	}
 	public void merge(Node n){
 		this._isCollapsed = true;
 		//Remove the node collapsing onto this
-		DigraphSort.nodes.remove(n);
-		this._sources.remove(n);
-		this._sources.addAll(n.getSources());
+		DigraphSort.nodes.remove(n.getKey());
+		//this._sources.remove(n);
+		//this._sources.addAll(n.getSources());
 		this._collapsed.add(n.getKey());
+		//Update in nodes
+		DigraphSort.nodes.remove(this._key);
 		//Replace this node's key if the collapsed node is shorter
 		if(n.getKey() < this._key){
 			this._key = n.getKey();
 		}
-		//Update in nodes
-		DigraphSort.nodes.remove(this);
 		DigraphSort.nodes.put(this._key, this);
 	}
 
 }
 
+@SuppressWarnings("serial")
 class InvalidInputException extends RuntimeException{
 	Node _invokingNode;
 	InvalidInputException(Node n){
