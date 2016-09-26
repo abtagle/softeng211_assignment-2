@@ -189,8 +189,8 @@ class Node{
 		this._isCollapsed = true;
 		//Remove the node collapsing onto this
 		DigraphSort.nodes.remove(n.getKey());
-		//this._sources.remove(n);
-		//this._sources.addAll(n.getSources());
+		this._sources.remove(n);
+		this._sources.addAll(n.getSources());
 		this._collapsed.add(n.getKey());
 		//Update in nodes
 		DigraphSort.nodes.remove(this._key);
@@ -203,7 +203,6 @@ class Node{
 
 }
 
-@SuppressWarnings("serial")
 class InvalidInputException extends RuntimeException{
 	Node _invokingNode;
 	InvalidInputException(Node n){
